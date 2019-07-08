@@ -3184,41 +3184,52 @@ void ReliabilityLayer::InsertIntoSplitPacketList( InternalPacket * internalPacke
 InternalPacket * ReliabilityLayer::BuildPacketFromSplitPacketList( SplitPacketChannel *splitPacketChannel, CCTimeType time )
 {
 #if PREALLOCATE_LARGE_MESSAGES==1
-	InternalPacket *returnedPacket=splitPacketChannel->returnedPacket;
-	RakNet::OP_DELETE(splitPacketChannel, __FILE__, __LINE__);
-	(void) time;
-	return returnedPacket;
+InternalPacket *returnedPacket=splitPacketChannel->returnedPacket;
+RakNet::OP_DELETE(splitPacketChannel, FILE, LINE);
+(void) time;
+return returnedPacket;
 #else
-	unsigned int j;
-	InternalPacket * internalPacket, *splitPacket;
-	// int splitPacketPartLength;
+unsigned int j;
+InternalPacket * internalPacket, *splitPacket;
+// int splitPacketPartLength;
 
-	// Reconstruct
-	internalPacket = CreateInternalPacketCopy( splitPacketChannel->splitPacketList[0], 0, 0, time );
-	internalPacket->dataBitLength=0;
-	for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
-		internalPacket->dataBitLength+=splitPacketChannel->splitPacketList[j]->dataBitLength;
-	// splitPacketPartLength=BITS_TO_BYTES(splitPacketChannel->firstPacket->dataBitLength);
+// Reconstruct
+internalPacket = CreateInternalPacketCopy( splitPacketChannel->splitPacketList[0], 0, 0, time );
+internalPacket->dataBitLength=0;
+for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
+	internalPacket->dataBitLength+=splitPacketChannel->splitPacketList[j]->dataBitLength;
+// splitPacketPartLength=BITS_TO_BYTES(splitPacketChannel->firstPacket->dataBitLength);
 
-	internalPacket->data = (unsigned char*) rakMalloc_Ex( (size_t) BITS_TO_BYTES( internalPacket->dataBitLength ), _FILE_AND_LINE_ );
-	internalPacket->allocationScheme=InternalPacket::NORMAL;
+internalPacket->data = (unsigned char*) rakMalloc_Ex( (size_t) BITS_TO_BYTES( internalPacket->dataBitLength ), _FILE_AND_LINE_ );
+internalPacket->allocationScheme=InternalPacket::NORMAL;
 
-    BitSize_t offset = 0;
-	for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
+BitSize_t offset = 0; 
+
+int itt = 0;
+while (itt < splitPacketChannel->splitPacketList.Size())
+{
+	for (j = 0; j < splitPacketChannel->splitPacketList.Size(); j++)
 	{
-		splitPacket=splitPacketChannel->splitPacketList[j];
-        memcpy(internalPacket->data + BITS_TO_BYTES(offset), splitPacket->data, (size_t)BITS_TO_BYTES(splitPacketChannel->splitPacketList[j]->dataBitLength));
-        offset += splitPacketChannel->splitPacketList[j]->dataBitLength;
+		splitPacket = splitPacketChannel->splitPacketList[j];
+		if (itt == splitPacket->splitPacketIndex)
+		{
+			memcpy(internalPacket->data + BITS_TO_BYTES(offset), splitPacket->data, (size_t)BITS_TO_BYTES(splitPacketChannel->splitPacketList[j]->dataBitLength));
+			offset += splitPacketChannel->splitPacketList[j]->dataBitLength;
+			break;
+		}
 	}
 
-	for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
-	{
-		FreeInternalPacketData(splitPacketChannel->splitPacketList[j], _FILE_AND_LINE_ );
-		ReleaseToInternalPacketPool(splitPacketChannel->splitPacketList[j]);
-	}
-	RakNet::OP_DELETE(splitPacketChannel, __FILE__, __LINE__);
+	itt++;
+}
 
-	return internalPacket;
+for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
+{
+	FreeInternalPacketData(splitPacketChannel->splitPacketList[j], _FILE_AND_LINE_ );
+	ReleaseToInternalPacketPool(splitPacketChannel->splitPacketList[j]);
+}
+RakNet::OP_DELETE(splitPacketChannel, __FILE__, __LINE__);
+
+return internalPacket;
 #endif
 }
 //-------------------------------------------------------------------------------------------------------
